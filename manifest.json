@@ -1,13 +1,13 @@
 {
-  "id": "vanilla-theme",
-  "title": "Vanilla",
-  "description": "Default Pano theme.",
+  "id": "banana-theme",
+  "title": "Banana",
+  "description": "'Banana' - a free theme for Pano. ",
   "version": "v{version}",
-  "author": "Pano MC",
+  "author": "Pano",
   "license": "MIT",
   "screenshots": [
     "screenshots/1.png"
   ],
-  "sourceUrl": "https://github.com/PanoMC/vanilla-theme",
+  "sourceUrl": "https://github.com/PanoMC/banana-theme",
   "panoVersion": "local-build"
 }

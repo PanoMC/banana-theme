@@ -89,7 +89,7 @@ jobs:
           sed -i 's/"version": *"[^"]*"/"version": "v${{ needs.get-next-version.outputs.new_tag_version }}"/' build/manifest.json
 
       - name: Zip Build
-        run: cd build && zip -r ../vanilla-theme-v${{ needs.get-next-version.outputs.new_tag_version }}.zip . && cd ..
+        run: cd build && zip -r ../banana-theme-v${{ needs.get-next-version.outputs.new_tag_version }}.zip . && cd ..
 
       - name: Release
         env:

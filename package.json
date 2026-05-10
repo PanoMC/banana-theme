@@ -1,5 +1,5 @@
 {
-  "name": "pano-vanilla-theme",
+  "name": "pano-banana-theme",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite dev --host=0.0.0.0 --port 3000",
