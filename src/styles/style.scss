@@ -1,0 +1,242 @@
+// Import PanoUI and 
+
+@import "../pano-sdk/core/scss/main";
+@import "node_modules/tippy.js/dist/tippy";
+@import "node_modules/animate.css/animate.min";
+
+@import "node_modules/@fortawesome/fontawesome-free/scss/fontawesome";
+@import "node_modules/@fortawesome/fontawesome-free/scss/brands";
+@import "node_modules/@fortawesome/fontawesome-free/scss/solid";
+
+:root {
+  --animate-duration: 250ms;
+}
+
+@keyframes readNotification {
+  0% {
+    background-color: rgba($primary, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+// Theme Styles
+
+// Vanilla Theme Hero
+
+.hero {
+  position: relative;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0; /* top:0; right:0; bottom:0; left:0; */
+  
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  z-index: 0;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+// Square Cards for Desktop (Posts only — sidebar cards size to content)
+@media (min-width: 992px) {
+  .vanilla-post-card {
+    aspect-ratio: 1 / 1 !important;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    border: 1.5px solid var(--bs-border-color) !important;
+    box-shadow: var(--bs-box-shadow-sm) !important;
+    overflow: hidden;
+
+    .card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+  }
+
+  // Sidebar cards share the same visual treatment but size to content
+  aside .card {
+    border: 1.5px solid var(--bs-border-color) !important;
+    box-shadow: var(--bs-box-shadow-sm) !important;
+    overflow: hidden;
+  }
+
+  // Sync Slider (Carousel) height with 1x1 sidebar cards / post cards
+  // Only apply 2.05 ratio when in homepage content area (next to sidebar)
+  [hookName="page:home:top"] {
+    .carousel,
+    .pano-carousel,
+    .card {
+      aspect-ratio: 2.05 / 1 !important;
+      padding: 0 !important;
+      overflow: hidden;
+
+      .card-body {
+        padding: 0 !important;
+      }
+      
+      .carousel-inner,
+      .carousel-item {
+        height: 100% !important;
+        
+        a {
+          display: block !important;
+          height: 100% !important;
+        }
+      }
+
+      .card-img,
+      img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+      }
+
+      // Ensure "read more" links are visible on images
+      .btn-link, 
+      .link-secondary,
+      .text-secondary {
+        color: var(--bs-secondary) !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        opacity: 1 !important;
+        
+        &:hover {
+          color: var(--bs-secondary) !important;
+          opacity: 0.8 !important;
+        }
+      }
+    }
+
+    // Pull slider to column edges by canceling padding
+    margin-left: calc(var(--bs-gutter-x) * -0.5);
+    margin-right: calc(var(--bs-gutter-x) * -0.5);
+    width: calc(100% + var(--bs-gutter-x));
+  }
+
+  // Handle Slider in Global Top position (full width)
+  [hookName="page:top"] {
+    .carousel,
+    .pano-carousel,
+    .card {
+      aspect-ratio: 3.5 / 1 !important; // Panoramic ratio for full width
+      padding: 0 !important;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+
+      .card-body {
+        padding: 0 !important;
+      }
+
+      .carousel-inner,
+      .carousel-item {
+        height: 100% !important;
+        a { display: block !important; height: 100% !important; }
+      }
+
+      img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+      }
+
+      // Ensure "read more" links are visible on images
+      .btn-link, 
+      .link-secondary,
+      .text-secondary {
+        color: var(--bs-secondary) !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        opacity: 1 !important;
+        
+        &:hover {
+          color: var(--bs-secondary) !important;
+          opacity: 0.8 !important;
+        }
+      }
+    }
+  }
+
+  aside .card .card-body {
+    align-items: center;
+    text-align: center;
+  }
+  
+  // Handle list groups in sidebar cards
+  aside .card .list-group {
+    width: 100%;
+  }
+
+  // Adjust post card thumbnail for 1:1
+  .vanilla-post-card {
+    .post-card-thumbnail-wrapper {
+      .ratio-16x9 {
+        --bs-aspect-ratio: 50% !important; // Make image take less space in 1:1 card if needed, or keep 16:9
+      }
+    }
+  }
+}
+
+// —— Notifications page (panel ile aynı okunmamış vurgu + sınıf kalkınca yumuşak geçiş)
+.site-notification-row.list-group-item {
+  position: relative;
+  z-index: 0;
+  border-left: 1px solid transparent;
+  transition:
+    border-left-color 0.75s ease,
+    border-left-width 0.75s ease,
+    box-shadow 0.75s ease;
+}
+
+.site-notification-row.list-group-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--bs-primary-bg-subtle, rgba(13, 110, 253, 0.3)) 0%,
+    rgba(13, 110, 253, 0.08) 78%,
+    transparent 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.2);
+  opacity: 0;
+  transition: opacity 0.85s ease, filter 0.25s ease;
+}
+
+.site-notification-row.list-group-item.notification-unread:not(.active)::after {
+  opacity: 1;
+}
+
+.site-notification-row.list-group-item.notification-unread:not(.active) {
+  border-left: 4px solid var(--bs-primary, #0d6efd);
+  box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.1);
+}
+
+.site-notification-row.list-group-item.notification-unread:not(.active):hover::after {
+  filter: brightness(1.04);
+}
+
+.site-notification-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.site-notification-row.list-group-item.notification-unread .markdown-renderer {
+  font-weight: 700;
+  transition: font-weight 0.5s ease;
+}
