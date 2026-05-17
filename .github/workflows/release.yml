@@ -9,7 +9,7 @@ name: Pano Vanilla Theme Release
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "dev", "master" ]
 
 permissions:
   contents: read
