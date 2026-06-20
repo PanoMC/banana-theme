@@ -3,11 +3,19 @@
     {#if !data.layout}
       <slot />
     {:else}
-      {#key data}
-        <div use:mountLayout class="plugin-layout-container"></div>
-      {/key}
+      <!--
+        layoutContainer and slotContentContainer stay OUTSIDE {#key data} so navigation never
+        destroys them. The slot bridge moves slotContentContainer into the mounted layout's anchor;
+        if it were keyed, the key teardown on navigation would rip the live <slot> subtree out of
+        the layout, blanking/tearing the page. Only an inner wrapper is keyed, to refresh content.
+      -->
+      <div bind:this={layoutContainer} class="plugin-layout-container"></div>
       <div bind:this={slotContentContainer} class="plugin-content-wrapper" style="display: none;">
-        <slot />
+        {#key data}
+          <div class="plugin-content-keyed">
+            <slot />
+          </div>
+        {/key}
       </div>
     {/if}
   </svelte:component>
@@ -15,11 +23,13 @@
   {#if !data.layout}
     <slot />
   {:else}
-    {#key data}
-      <div use:mountLayout class="plugin-layout-container"></div>
-    {/key}
+    <div bind:this={layoutContainer} class="plugin-layout-container"></div>
     <div bind:this={slotContentContainer} class="plugin-content-wrapper" style="display: none;">
-      <slot />
+      {#key data}
+        <div class="plugin-content-keyed">
+          <slot />
+        </div>
+      {/key}
     </div>
   {/if}
 {/if}
@@ -121,65 +131,105 @@
   import { mount, unmount, getAllContexts } from 'svelte';
   import { browser } from '$app/environment';
 
-
-  export let data;
-
-  const { resetLayout } = data;
+  let { data } = $props();
   const contexts = getAllContexts();
 
-  let slotContentContainer;
+  let layoutContainer = $state();
+  let slotContentContainer = $state();
+  let layoutInstance = null;
+  let activeLayoutComp = null;
 
-  function mountLayout(layoutContainer) {
-    if (!browser || !layoutContainer || !data.layout) return;
+  function cleanupLayout() {
+    // The slot content was DOM-moved into the layout's anchor. Move it back to its stable parent
+    // (the .plugin-content-wrapper -> here, the layout container's host) BEFORE destroying the
+    // layout, so Svelte's teardown never unmounts a live <slot> subtree that it doesn't own.
+    if (slotContentContainer && layoutContainer && layoutContainer.parentNode) {
+      try {
+        slotContentContainer.style.display = 'none';
+        layoutContainer.parentNode.insertBefore(slotContentContainer, layoutContainer.nextSibling);
+      } catch (e) {}
+    }
+    if (layoutInstance) {
+      try {
+        if (typeof activeLayoutComp?.unmount === 'function') activeLayoutComp.unmount(layoutInstance);
+        else unmount(layoutInstance);
+      } catch (e) {}
+      layoutInstance = null;
+      activeLayoutComp = null;
+    }
+  }
 
-    const layoutComp = data.layout.default || data.layout;
-    let layoutInstance;
+  // Layout lifecycle: mount the plugin layout into the stable layoutContainer.
+  $effect(() => {
+    if (!browser || !layoutContainer) return;
 
-    try {
-      // Check for bridge
-      if (data.layout.mount) {
-        layoutInstance = data.layout.mount({
-          target: layoutContainer,
-          props: { ...(data.props || {}), panoContexts: contexts },
-          context: contexts
-        });
-      } else {
-        layoutInstance = mount(layoutComp, {
-          target: layoutContainer,
-          props: { ...(data.props || {}), panoContexts: contexts },
-          context: contexts
-        });
-      }
-
-      // SLOT BRIDGE: Smart Injection
-      setTimeout(() => {
-        const anchor = layoutContainer.querySelector(
-          '[data-pano-content], main, .content, .page-content, article',
-        );
-
-        if (anchor && slotContentContainer) {
-          anchor.appendChild(slotContentContainer);
-          slotContentContainer.style.display = '';
-        } else if (slotContentContainer) {
-          if (layoutContainer.firstElementChild) {
-            layoutContainer.firstElementChild.appendChild(slotContentContainer);
-          }
-          slotContentContainer.style.display = '';
-        }
-      }, 0);
-    } catch (e) {
-      console.error('Failed to mount layout', e);
+    if (!data.layout) {
+      cleanupLayout();
+      return;
     }
 
-    return {
-      destroy() {
-        if (layoutInstance) {
-          try {
-            if (data.layout?.unmount) data.layout.unmount(layoutInstance);
-            else unmount(layoutInstance);
-          } catch (e) {}
+    const layoutComp = data.layout.default || data.layout;
+    if (activeLayoutComp !== data.layout) {
+      cleanupLayout();
+      try {
+        if (data.layout.mount) {
+          layoutInstance = data.layout.mount({
+            target: layoutContainer,
+            props: { ...(data.props || {}), panoContexts: contexts },
+            context: contexts
+          });
+        } else {
+          layoutInstance = mount(layoutComp, {
+            target: layoutContainer,
+            props: { ...(data.props || {}), panoContexts: contexts },
+            context: contexts
+          });
         }
+        activeLayoutComp = data.layout;
+      } catch (e) {
+        console.error('[Layout] Mount failed', e);
+      }
+    }
+  });
+
+  // Teardown on destroy (SSR-safe cleanup pattern for plugin-hosted routes).
+  $effect(() => () => cleanupLayout());
+
+  // Slot bridge: move the (stable, un-keyed) slotContentContainer into the layout's anchor, only
+  // when it isn't already there, so the live <slot> subtree is never re-parented redundantly.
+  $effect(() => {
+    const _pageData = data; // dependency: re-run when navigation changes data
+    if (!browser) return;
+
+    let rafId;
+    const poll = () => {
+      if (!slotContentContainer) {
+        rafId = requestAnimationFrame(poll);
+        return;
+      }
+
+      if (!data.layout) {
+        slotContentContainer.style.display = '';
+        return;
+      }
+
+      const anchor = layoutContainer?.querySelector(
+        '[data-pano-content], main, .content, .page-content, article',
+      );
+
+      if (anchor) {
+        if (anchor.lastElementChild !== slotContentContainer) {
+          anchor.appendChild(slotContentContainer);
+        }
+        slotContentContainer.style.display = '';
+      } else {
+        rafId = requestAnimationFrame(poll);
       }
     };
-  }
+
+    poll();
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  });
 </script>
