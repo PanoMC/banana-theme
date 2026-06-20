@@ -32,9 +32,21 @@ export async function GET({ params }) {
     // Use mime-types to automatically determine the content type
     const contentType = mime.lookup(fileName) || "application/octet-stream"; // Default to 'application/octet-stream' if mime type is unknown
 
-    return new Response(data, {
-      headers: { "Content-Type": contentType }
-    });
+    const headers = { "Content-Type": contentType };
+
+    // Content-hashed chunks (e.g. "Foo-a1b2c3d4.js" / ".mjs") are immutable — their URL changes
+    // whenever their content does — so they can be cached forever. The unhashed entrypoint
+    // ("client.mjs") must be revalidated each load so a new build is picked up immediately.
+    const isHashedChunk = /-[0-9a-f]{6,}\.(?:js|mjs)$/i.test(safeFileName);
+    if (isHashedChunk) {
+      headers["Cache-Control"] = "public, max-age=31536000, immutable";
+    } else {
+      headers["Cache-Control"] = "no-cache";
+      // Trivial, cheap ETag so revalidation can short-circuit with a 304 when unchanged.
+      headers["ETag"] = `"${data.length.toString(16)}-${path.basename(safeFileName)}"`;
+    }
+
+    return new Response(data, { headers });
   } catch {
     return new Response("File not found or unable to read.", { status: 404 });
   }
