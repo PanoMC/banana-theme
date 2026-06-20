@@ -18,8 +18,11 @@ export async function GET({ params }) {
   // Construct the absolute file path
   const filePath = path.resolve(`plugins/${safePluginId}/client/${safeFileName}`);
 
-  // Ensure that the file exists and belongs to the intended plugin
-  if (!filePath.startsWith(path.resolve(`plugins/${safePluginId}/client/`))) {
+  // Ensure the resolved file is contained within the plugin's client directory. path.resolve
+  // strips trailing slashes, so appending path.sep is required — without it, a sibling directory
+  // like ".../client-evil" would still satisfy a bare startsWith(".../client") prefix check.
+  const baseDir = path.resolve(`plugins/${safePluginId}/client`) + path.sep;
+  if (!filePath.startsWith(baseDir)) {
     return new Response("Access to this file is forbidden.", { status: 403 });
   }
 
