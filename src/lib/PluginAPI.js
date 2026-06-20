@@ -474,13 +474,17 @@ export const panoApi = {
           if (!items[viewId]) items[viewId] = [];
           const existingIdx = items[viewId].findIndex((i) => i.id === id);
           if (existingIdx !== -1) {
+            // Keep the original registration sequence so re-registering an item is idempotent
+            // and doesn't reshuffle equal-priority neighbors.
             items[viewId][existingIdx] = {
               ...items[viewId][existingIdx],
               component,
               priority,
             };
           } else {
-            items[viewId].push({ id, component, priority, hidden: false });
+            // Stamp a monotonic registration sequence so equal-priority items keep a stable,
+            // total order that is identical between SSR and the client (see view.get).
+            items[viewId].push({ id, component, priority, hidden: false, seq: nextSeq() });
           }
           return items;
         });
@@ -513,7 +517,15 @@ export const panoApi = {
         return derived(uiItems, ($items) => {
           return ($items[viewId] || [])
             .filter((item) => !item.hidden)
-            .sort((a, b) => b.priority - a.priority);
+            // Total order so SSR and client agree even for equal priorities: priority desc, then
+            // registration sequence asc (stable across bundles), then id as a final tiebreaker.
+            .sort((a, b) => {
+              if (b.priority !== a.priority) return b.priority - a.priority;
+              const sa = a.seq ?? Number.MAX_SAFE_INTEGER;
+              const sb = b.seq ?? Number.MAX_SAFE_INTEGER;
+              if (sa !== sb) return sa - sb;
+              return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+            });
         });
       },
       onLoad(viewId, handler) {
