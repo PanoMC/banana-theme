@@ -3,10 +3,23 @@ import { derived, get, writable } from "svelte/store";
 import { plugins } from "../pano-sdk/core/js/PluginManager.js";
 import { sortSiteNavLinks } from "./orderNavLinks.util.js";
 import { avatarVersion } from "./Store.js";
+import { browser } from "$app/environment";
 
 const hooks = writable({});
 const uiItems = writable({});
 const siteNavLinks = writable([]);
+
+// Deep-clone a slot item's serializable shape (everything except its `component`, which is a
+// function/module reference the caller re-attaches). Falls back to a shallow copy if the item
+// holds something structuredClone can't handle, so a stray non-cloneable prop never throws.
+function safeClone(item) {
+  const { component, ...rest } = item;
+  try {
+    return structuredClone(rest);
+  } catch {
+    return { ...rest, props: rest.props ? { ...rest.props, data: { ...rest.props.data } } : undefined };
+  }
+}
 
 // Deduplicate items by id, keeping the last occurrence
 function deduplicateById(arr) {
@@ -103,7 +116,14 @@ async function executeComponentLoad(containerId, type, event) {
         }
       }
 
-      const updatedItem = { ...item, component: module };
+      // On the server, uiItems is a process-global singleton shared across every request, so the
+      // slot item we hand back must not share mutable structure with the registration entry — a
+      // shallow copy would leak this request's load() props into other requests. Deep-clone the
+      // item on the server before merging props. The client keeps the original per-request copy
+      // (its store is a fresh instance per session, so mutation is naturally request-scoped).
+      const updatedItem = browser
+        ? { ...item, component: module }
+        : { ...safeClone(item), component: module };
       if (props && typeof props === "object" && Object.keys(props).length > 0) {
         if (!updatedItem.props) updatedItem.props = {};
         updatedItem.props.data = { ...updatedItem.props.data, ...props };
