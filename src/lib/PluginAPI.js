@@ -9,6 +9,15 @@ const hooks = writable({});
 const uiItems = writable({});
 const siteNavLinks = writable([]);
 
+// Monotonic registration counter. Plugins register hooks/views during module evaluation, which
+// runs in the same order on the server and the client, so a registration-order stamp gives a
+// stable sort key that is identical across SSR and hydration — unlike a hashed importer source,
+// whose chunk hashes differ between the server and client bundles and cause hydration mismatches.
+let registrationSeq = 0;
+function nextSeq() {
+  return registrationSeq++;
+}
+
 // Deep-clone a slot item's serializable shape (everything except its `component`, which is a
 // function/module reference the caller re-attaches). Falls back to a shallow copy if the item
 // holds something structuredClone can't handle, so a stray non-cloneable prop never throws.
@@ -19,6 +28,17 @@ function safeClone(item) {
   } catch {
     return { ...rest, props: rest.props ? { ...rest.props, data: { ...rest.props.data } } : undefined };
   }
+}
+
+// Total order over hook entries by their stamped registration sequence. Entries missing a `_seq`
+// (defensive: shouldn't normally happen) sort after stamped ones, then by id for determinism.
+function compareByRegistration(a, b) {
+  const sa = a && a._seq;
+  const sb = b && b._seq;
+  if (sa !== undefined && sb !== undefined && sa !== sb) return sa - sb;
+  if (sa === undefined && sb !== undefined) return 1;
+  if (sb === undefined && sa !== undefined) return -1;
+  return String(a?.id ?? "").localeCompare(String(b?.id ?? ""));
 }
 
 // Deduplicate items by id, keeping the last occurrence
@@ -554,6 +574,9 @@ export const panoApi = {
     hook: {
       register(options) {
         const { name } = options;
+        // Stamp a stable registration-order id at register time. Sorting by this instead of the
+        // hashed importer source keeps server and client hook order identical (no hydration drift).
+        if (options._seq === undefined) options._seq = nextSeq();
         hooks.update(h => {
           if (!h[name]) h[name] = [];
           h[name].push(options);
@@ -563,18 +586,9 @@ export const panoApi = {
       get(name) {
         return derived(hooks, $h => {
           const rawHooks = $h[name] || [];
-          // Sort by component.toString() to ensure stable order regardless of registration/import order
-          // Deterministic order is crucial for server-client prop synchronization
-          return [...rawHooks].sort((a, b) => {
-            const getSource = (item) => {
-              const comp = item.component || "";
-              const source = comp._original || comp;
-              return source._importer ? source._importer.toString() : source.toString();
-            };
-            const keyA = getSource(a);
-            const keyB = getSource(b);
-            return keyA.localeCompare(keyB);
-          });
+          // Sort by stable registration order (see hook.register). Registration order is identical
+          // across SSR and client, so this avoids the hydration mismatch a hashed-source sort caused.
+          return [...rawHooks].sort(compareByRegistration);
         });
       },
       setVisible(name, component, visible) {
@@ -621,17 +635,9 @@ export async function executeHookLoad(name, originalEvent) {
   const $h = get(hooks);
   let list = $h[name] || [];
 
-  // MUST match the sort order used in 'get' accessor
-  list = [...list].sort((a, b) => {
-    const getSource = (item) => {
-      const comp = item.component || "";
-      const source = comp._original || comp;
-      return source._importer ? source._importer.toString() : source.toString();
-    };
-    const keyA = getSource(a);
-    const keyB = getSource(b);
-    return keyA.localeCompare(keyB);
-  });
+  // MUST match the sort order used in 'get' accessor: stable registration order, identical on the
+  // server and client (a hashed-source sort diverged between bundles and broke prop synchronization).
+  list = [...list].sort(compareByRegistration);
 
   // Resolve all modules and execute load functions in parallel
   const results = await Promise.all(
