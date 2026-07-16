@@ -1,37 +1,42 @@
+<style>
+  .plugin-layout-container {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
 {#if data.systemLayout}
   <svelte:component this={data.systemLayout} {data}>
-    {#if !data.layout}
-      <slot />
-    {:else}
-      <!--
-        layoutContainer and slotContentContainer stay OUTSIDE {#key data} so navigation never
-        destroys them. The slot bridge moves slotContentContainer into the mounted layout's anchor;
-        if it were keyed, the key teardown on navigation would rip the live <slot> subtree out of
-        the layout, blanking/tearing the page. Only an inner wrapper is keyed, to refresh content.
-      -->
-      <div bind:this={layoutContainer} class="plugin-layout-container"></div>
-      <div bind:this={slotContentContainer} class="plugin-content-wrapper" style="display: none;">
-        {#key data}
-          <div class="plugin-content-keyed">
-            <slot />
-          </div>
-        {/key}
-      </div>
-    {/if}
-  </svelte:component>
-{:else}
-  {#if !data.layout}
-    <slot />
-  {:else}
-    <div bind:this={layoutContainer} class="plugin-layout-container"></div>
-    <div bind:this={slotContentContainer} class="plugin-content-wrapper" style="display: none;">
+    <div
+      bind:this={layoutContainer}
+      class="plugin-layout-container"
+      style={data.layout ? '' : 'display: none;'}>
+    </div>
+
+    <div
+      bind:this={slotContentContainer}
+      class="plugin-content-wrapper"
+      style={data.layout ? 'display: none;' : ''}>
       {#key data}
-        <div class="plugin-content-keyed">
-          <slot />
-        </div>
+        <slot />
       {/key}
     </div>
-  {/if}
+  </svelte:component>
+{:else}
+  <div
+    bind:this={layoutContainer}
+    class="plugin-layout-container"
+    style={data.layout ? '' : 'display: none;'}>
+  </div>
+
+  <div
+    bind:this={slotContentContainer}
+    class="plugin-content-wrapper"
+    style={data.layout ? 'display: none;' : ''}>
+    {#key data}
+      <slot />
+    {/key}
+  </div>
 {/if}
 
 <script context="module">
@@ -131,7 +136,9 @@
   import { mount, unmount, getAllContexts } from 'svelte';
   import { browser } from '$app/environment';
 
+
   let { data } = $props();
+
   const contexts = getAllContexts();
 
   let layoutContainer = $state();
@@ -139,19 +146,57 @@
   let layoutInstance = null;
   let activeLayoutComp = null;
 
-  function cleanupLayout() {
-    // The slot content was DOM-moved into the layout's anchor. Move it back to its stable parent
-    // (the .plugin-content-wrapper -> here, the layout container's host) BEFORE destroying the
-    // layout, so Svelte's teardown never unmounts a live <slot> subtree that it doesn't own.
-    if (slotContentContainer && layoutContainer && layoutContainer.parentNode) {
-      try {
-        slotContentContainer.style.display = 'none';
-        layoutContainer.parentNode.insertBefore(slotContentContainer, layoutContainer.nextSibling);
-      } catch (e) {}
+  // The slot wrapper's NATURAL DOM position (where Svelte rendered it, inside the theme
+  // shell / systemLayout). Captured on first bind — BEFORE any bridging move — so pages
+  // without a plugin layout can always be restored to normal document flow.
+  let slotHome = null;
+
+  $effect(() => {
+    if (!browser || !slotContentContainer || slotHome) return;
+    slotHome = {
+      parent: slotContentContainer.parentNode,
+      anchor: slotContentContainer.nextSibling,
+    };
+  });
+
+  // A stable parent the slot content survives layout TEARDOWN in: before destroying a
+  // mounted layout we park the slot content here so the live <slot> subtree is never
+  // torn out together with the layout.
+  function stableSlotParent() {
+    return browser ? document.body : null;
+  }
+
+  // Put the slot wrapper back where Svelte originally rendered it (its SSR position).
+  function restoreSlotHome() {
+    if (!browser || !slotContentContainer || !slotHome?.parent?.isConnected) return;
+    if (slotContentContainer.parentNode !== slotHome.parent) {
+      slotHome.parent.insertBefore(
+        slotContentContainer,
+        slotHome.anchor?.parentNode === slotHome.parent ? slotHome.anchor : null,
+      );
     }
+  }
+
+  function cleanupLayout() {
+    // Park the slot content outside the layout BEFORE unmounting it, otherwise unmounting
+    // rips the live <slot> subtree out of the DOM -> blank/torn content and a detached-DOM
+    // leak. ONLY when a layout is actually mounted: running this unconditionally stranded
+    // every no-layout plugin page's content at the end of <body> on hydration — the page
+    // rendered fine in SSR, then "vanished" below the footer at CSR (title correct, body
+    // seemingly gone).
+    if (browser && slotContentContainer && layoutInstance) {
+      const parent = stableSlotParent();
+      if (parent && slotContentContainer.parentNode !== parent) {
+        slotContentContainer.style.display = 'none';
+        parent.appendChild(slotContentContainer);
+      }
+    }
+
     if (layoutInstance) {
       try {
-        if (typeof activeLayoutComp?.unmount === 'function') activeLayoutComp.unmount(layoutInstance);
+        // Use the snapshot of what was mounted
+        if (typeof activeLayoutComp?.unmount === 'function')
+          activeLayoutComp.unmount(layoutInstance);
         else unmount(layoutInstance);
       } catch (e) {}
       layoutInstance = null;
@@ -159,7 +204,9 @@
     }
   }
 
-  // Layout lifecycle: mount the plugin layout into the stable layoutContainer.
+  // Layout lifecycle: mount / re-mount the dynamic plugin layout into the persistent
+  // layoutContainer. The container itself is NOT keyed, so navigation between plugin pages never
+  // destroys it and never tears out the bridged slot content.
   $effect(() => {
     if (!browser || !layoutContainer) return;
 
@@ -176,13 +223,13 @@
           layoutInstance = data.layout.mount({
             target: layoutContainer,
             props: { ...(data.props || {}), panoContexts: contexts },
-            context: contexts
+            context: contexts,
           });
         } else {
           layoutInstance = mount(layoutComp, {
             target: layoutContainer,
             props: { ...(data.props || {}), panoContexts: contexts },
-            context: contexts
+            context: contexts,
           });
         }
         activeLayoutComp = data.layout;
@@ -192,13 +239,13 @@
     }
   });
 
-  // Teardown on destroy (SSR-safe cleanup pattern for plugin-hosted routes).
   $effect(() => () => cleanupLayout());
 
-  // Slot bridge: move the (stable, un-keyed) slotContentContainer into the layout's anchor, only
-  // when it isn't already there, so the live <slot> subtree is never re-parented redundantly.
+  // Slot bridge: move the slot content into the layout's content anchor. Only append when the
+  // slot is not already the anchor's last child, so we never detach a live, correctly-placed
+  // subtree (which would blank the content during re-renders).
   $effect(() => {
-    const _pageData = data; // dependency: re-run when navigation changes data
+    const _pageData = data; // dependency
     if (!browser) return;
 
     let rafId;
@@ -208,7 +255,11 @@
         return;
       }
 
+      // No dynamic layout: make sure the wrapper sits in its natural (SSR) position —
+      // a previous layout page's teardown may have parked it on <body> — then reset
+      // style and stop polling.
       if (!data.layout) {
+        restoreSlotHome();
         slotContentContainer.style.display = '';
         return;
       }
@@ -220,6 +271,11 @@
       if (anchor) {
         if (anchor.lastElementChild !== slotContentContainer) {
           anchor.appendChild(slotContentContainer);
+        }
+        slotContentContainer.style.display = '';
+      } else if (layoutContainer?.firstElementChild) {
+        if (layoutContainer.firstElementChild.lastElementChild !== slotContentContainer) {
+          layoutContainer.firstElementChild.appendChild(slotContentContainer);
         }
         slotContentContainer.style.display = '';
       } else {
