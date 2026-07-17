@@ -318,14 +318,14 @@
 
   import { page } from "$app/stores";
   import { browser } from "$app/environment";
-  import { PANEL_URL } from "$lib/variables.js";
+  import { PANEL_URL } from "$pano/lib/variables.js";
 
-  import { avatarVersion, logout, notificationsCount } from "$lib/Store";
-  import { panoApiClient } from "$lib/PluginAPI.js";
-  import { hasPermission } from "$lib/auth.util.js";
-  import tooltip from "$lib/tooltip.util";
-  import { orderLinksBySavedOrder } from "$lib/orderNavLinks.util.js";
-  import ViewComponent from "$lib/components/ViewComponent.svelte";
+  import { avatarVersion, logout, notificationsCount } from "$pano/lib/Store";
+  import { panoApiClient } from "$pano/lib/PluginAPI.js";
+  import { hasPermission } from "$pano/lib/auth.util.js";
+  import tooltip from "$pano/lib/tooltip.util";
+  import { orderLinksBySavedOrder } from "$pano/lib/orderNavLinks.util.js";
+  import ViewComponent from "$pano/lib/components/ViewComponent.svelte";
 
   const themeDefaults = {
     dark: "#044389",
