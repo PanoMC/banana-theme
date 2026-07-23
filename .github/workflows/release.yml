@@ -2,8 +2,12 @@ name: Release
 on:
   push:
     branches: ["dev", "master"]
+# A called workflow cannot exceed the caller's permissions.
 permissions:
-  contents: read
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
 jobs:
   release:
     uses: PanoMC/sdk/.github/workflows/theme-release.yml@dev
