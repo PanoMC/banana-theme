@@ -191,7 +191,7 @@
   }
 }
 
-// —— Notifications page (panel ile aynı okunmamış vurgu + sınıf kalkınca yumuşak geçiş)
+// —— Notifications page (same unread highlight as in the panel + smooth transition once the class is removed)
 .site-notification-row.list-group-item {
   position: relative;
   z-index: 0;
