@@ -78,9 +78,7 @@
   // Sync Slider (Carousel) height with 1x1 sidebar cards / post cards
   // Only apply 2.05 ratio when in homepage content area (next to sidebar)
   [hookName="page:home:top"] {
-    .carousel,
-    .pano-carousel,
-    .card {
+    .slider-slider .carousel {
       aspect-ratio: 2.05 / 1 !important;
       padding: 0 !important;
       overflow: hidden;
@@ -130,9 +128,7 @@
 
   // Handle Slider in Global Top position (full width)
   [hookName="page:top"] {
-    .carousel,
-    .pano-carousel,
-    .card {
+    .slider-slider .carousel {
       aspect-ratio: 3.5 / 1 !important; // Panoramic ratio for full width
       padding: 0 !important;
       overflow: hidden;
@@ -241,3 +237,6 @@
   font-weight: 700;
   transition: font-weight 0.5s ease;
 }
+
+// Plugin UI (semantic classes)
+@import "plugins";

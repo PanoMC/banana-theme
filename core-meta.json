@@ -1,0 +1,11 @@
+{
+  "overrides": {
+    "Navbar": 1
+  },
+  "engine": {
+    "Navbar": 1
+  },
+  "supports": {},
+  "controllers": {},
+  "overrideControllers": {}
+}

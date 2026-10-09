@@ -155,7 +155,7 @@
                   <img
                     alt={$session.user.username}
                     class="rounded"
-                    src="/api/profile/picture/{$session.user
+                    src="/api/v1/profile/picture/{$session.user
                       .username}?{$avatarVersion}"
                     width="24"
                     height="24" />

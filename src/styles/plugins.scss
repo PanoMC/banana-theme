@@ -1,0 +1,121 @@
+// Plugin UI in banana's own look: the accent colour and soft, rounded shapes.
+// Rules sit on the plugins' semantic classes (<ns>-<view>[__part]); no view is ejected.
+// Not styled here (default look kept): market creator/codes/gift/ledger/subscription pages,
+// topup, shipments, payment mocks, staff, faq, bans, media gallery, pages, avatar,
+// premium-login and social-login steps, whitelist, link-redirects.
+
+$banana-radius: 1.25rem;
+
+@mixin banana-card {
+  border-radius: $banana-radius;
+  border: 2px solid var(--bs-border-color);
+  box-shadow: 0 4px 0 rgba(var(--bs-primary-rgb), 0.25);
+  overflow: hidden;
+}
+
+// —— Store path
+.market-product-card.card,
+.market-product-page .card,
+.market-store-state-card.card,
+.market-checkout-page .card,
+.market-order-page .card {
+  @include banana-card;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.market-product-card.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--bs-primary);
+  box-shadow: 0 7px 0 rgba(var(--bs-primary-rgb), 0.35);
+}
+
+.market-store-toolbar .form-control,
+.market-store-toolbar .form-select {
+  border-radius: 999px;
+}
+
+.market-product-card .btn,
+.market-product-page .btn,
+.market-checkout-page .btn,
+.market-order-page .btn,
+.market-cart-offcanvas .btn {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.market-product-card__badge,
+.market-product-card__sold-out,
+.market-product-page__badge,
+.market-product-page__sold-out,
+.market-nav-cart__badge {
+  border-radius: 999px;
+}
+
+.market-category-tree__list.list-group {
+  border-radius: $banana-radius;
+  border: 2px solid var(--bs-border-color);
+  overflow: hidden;
+
+  .list-group-item.active {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+  }
+}
+
+.market-cart-offcanvas.offcanvas {
+  border-radius: $banana-radius 0 0 $banana-radius;
+  border-left: 2px solid var(--bs-primary);
+}
+
+// —— Plugin UI every visitor meets
+.cookies-cookie-banner {
+  &.border-top,
+  &.border-bottom {
+    border-color: var(--bs-primary) !important;
+    border-width: 2px !important;
+  }
+}
+
+.cookies-cookie-banner__body {
+  border-radius: $banana-radius;
+  border: 2px solid var(--bs-primary);
+}
+
+.announcement-banner.alert {
+  border-radius: $banana-radius;
+  border-width: 2px;
+}
+
+.slider-slider .carousel {
+  border: 2px solid var(--bs-border-color);
+  border-radius: $banana-radius !important;
+}
+
+.slider-slider__caption-box {
+  border-radius: $banana-radius;
+}
+
+.countdown-timer-countdown-timer-page,
+.countdown-timer-countdown-timer-sidebar {
+  @include banana-card;
+}
+
+.comments-theme-post-comments {
+  .card,
+  .comments-theme-comment-item,
+  .comments-theme-post-comments__item {
+    border-radius: $banana-radius;
+    border: 2px solid var(--bs-border-color);
+  }
+
+  .btn {
+    border-radius: 999px;
+  }
+}
+
+.comments-add-comment-modal .modal-content,
+.comments-confirm-delete-comment-modal .modal-content,
+.market-legal-modal .modal-content {
+  border-radius: $banana-radius;
+  border: 2px solid var(--bs-primary);
+}
