@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   release:
-    uses: PanoMC/sdk/.github/workflows/theme-release.yml@dev
+    uses: PanoMC/sdk/.github/workflows/theme-release.yml@6b8e3f079f66c68ca5deab6553f7a4dc68ad55ac # dev; a commit, not the moving branch
     with:
       theme-id: banana-theme
     secrets:
