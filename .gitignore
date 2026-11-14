@@ -32,3 +32,5 @@ licenses.json
 /static/runtime
 /src/lib/runtimeShims.js
 .claude/
+/.runtime-shims-temp/
+/.lib-bundle-output/
